@@ -30,8 +30,46 @@ export interface MemoryGameState {
 
 export interface LiveServerStats {
   uptime: number
-  cpu: { load: number }
-  mem: { total: number; used: number; free: number }
-  os: { platform: string; distro: string; release: string; kernel: string; hostname: string }
-  docker: { total: number; active: number }
+  cpu: { 
+    load: number
+    manufacturer: string
+    brand: string
+    speed: string
+    speedMax: string
+    cores: number
+    physicalCores: number
+    cache: { l3: number }
+  }
+  load: {
+    avgLoad: number
+    currentLoad: number
+    tasks: { total: number; running: number }
+  }
+  mem: { 
+    total: number
+    used: number
+    free: number
+    swaptotal: number
+    swapused: number
+  }
+  os: { 
+    platform: string
+    distro: string
+    release: string
+    kernel: string
+    hostname: string
+    arch: string
+  }
+  network: {
+    ip4: string
+    activeConnections: number
+  }
+  disk: {
+    fs: string
+    type: string
+  }
+  docker: { 
+    total: number
+    active: number 
+  }
 }

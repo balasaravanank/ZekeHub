@@ -14,12 +14,12 @@ export const serverConfig: ServerConfig = {
 }
 
 export const creator: Creator = {
-  name: 'Balak',
-  role: 'Full-Stack Developer',
-  bio: 'Building and self-hosting web apps from scratch. Passionate about clean code, efficient systems, and learning by building.',
+  name: 'Bala Saravanan K',
+  role: 'AI & Full Stack Developer',
+  bio: 'Building systems that defy gravity. Crafting digital experiences from code to canvas with a focus on Full Stack, AI/ML, Cloud Architecture, and UI/UX design.',
   links: [
-    { label: 'GitHub', url: 'https://github.com', icon: 'Code2' },
-    { label: 'Portfolio', url: '#', icon: 'Globe' },
-    { label: 'Email', url: 'mailto:hello@example.com', icon: 'Mail' },
+    { label: 'Portfolio', url: 'https://www.baladev.me/', icon: 'Globe' },
+    { label: 'Transmission', url: 'https://www.baladev.me/#contact', icon: 'Code2' },
+    { label: 'Email', url: 'mailto:balasaravanank@example.com', icon: 'Mail' },
   ],
 }
