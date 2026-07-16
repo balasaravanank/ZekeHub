@@ -30,7 +30,7 @@ export function WorkshopPopup() {
 
   const handleVote = async (vote: 'yes' | 'no') => {
     try {
-      await fetch('/api/survey', {
+      await fetch('/api/pulse', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ vote }),

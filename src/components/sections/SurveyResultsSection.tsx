@@ -11,7 +11,7 @@ export function SurveyResultsSection() {
   useEffect(() => {
     async function fetchResults() {
       try {
-        const res = await fetch('/api/survey')
+        const res = await fetch('/api/pulse')
         if (res.ok) {
           const data = await res.json()
           setResults(data)

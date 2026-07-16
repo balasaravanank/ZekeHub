@@ -9,7 +9,7 @@ export function useServerStats(pollingIntervalMs = 2000) {
   useEffect(() => {
     async function fetchStats() {
       try {
-        const res = await fetch('/api/stats')
+        const res = await fetch('/api/diagnostics')
         if (!res.ok) throw new Error('Network response was not ok')
         const data = await res.json()
         setStats(data)

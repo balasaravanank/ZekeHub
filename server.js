@@ -14,7 +14,7 @@ app.use(cors());
 app.use(express.json());
 
 // API route for server stats
-app.get('/api/stats', async (req, res) => {
+app.get('/api/diagnostics', async (req, res) => {
   try {
     const [cpuInfo, cpuLoad, mem, os, time, docker, procs, netInterfaces, netConn, fs] = await Promise.all([
       si.cpu(),
@@ -105,7 +105,7 @@ async function getSurveyData() {
   }
 }
 
-app.get('/api/survey', async (req, res) => {
+app.get('/api/pulse', async (req, res) => {
   try {
     const data = await getSurveyData();
     res.json(data);
@@ -114,7 +114,7 @@ app.get('/api/survey', async (req, res) => {
   }
 });
 
-app.post('/api/survey', async (req, res) => {
+app.post('/api/pulse', async (req, res) => {
   try {
     const { vote } = req.body;
     if (vote !== 'yes' && vote !== 'no') {
