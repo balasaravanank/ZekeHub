@@ -3,6 +3,7 @@ import cors from 'cors';
 import si from 'systeminformation';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs/promises';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,25 +14,12 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// Global Caches for High Concurrency
+// ==========================================
+// 1. HARDWARE DIAGNOSTICS CACHE
+// ==========================================
 let cachedStats = null;
-let surveyCache = { yes: 0, no: 0 };
-const surveyFile = path.join(__dirname, 'survey-data.json');
-import fs from 'fs/promises';
 
-// Initialize Survey Cache
-async function initSurvey() {
-  try {
-    const data = await fs.readFile(surveyFile, 'utf8');
-    surveyCache = JSON.parse(data);
-  } catch {
-    await fs.writeFile(surveyFile, JSON.stringify(surveyCache));
-  }
-}
-initSurvey();
-
-// Update Stats every 2 seconds in the background
-setInterval(async () => {
+async function updateHardwareStats() {
   try {
     const [cpuInfo, cpuLoad, mem, os, time, docker, procs, netInterfaces, netConn, fileSys] = await Promise.all([
       si.cpu(),
@@ -46,12 +34,14 @@ setInterval(async () => {
       si.fsSize().catch(() => [])
     ]);
 
+    // Format Network IP (Find first non-internal IPv4)
     let ip4 = '*.*.*.*';
     if (Array.isArray(netInterfaces)) {
       const defaultIface = netInterfaces.find(iface => !iface.internal && iface.ip4);
       if (defaultIface) ip4 = defaultIface.ip4;
     }
 
+    // Format FS Size (Grab root or first)
     const mainFs = fileSys.length > 0 ? fileSys[0] : { fs: 'unknown', type: 'unknown' };
 
     cachedStats = {
@@ -86,48 +76,88 @@ setInterval(async () => {
         hostname: os.hostname,
         arch: os.arch || 'x64'
       },
-      network: { ip4, activeConnections: netConn.length || 0 },
-      disk: { fs: mainFs.fs || 'ext4', type: mainFs.type || 'SSD' },
-      docker: { total: docker.length, active: docker.filter((c) => c.state === 'running').length }
+      network: {
+        ip4,
+        activeConnections: netConn.length || 0
+      },
+      disk: {
+        fs: mainFs.fs || 'ext4',
+        type: mainFs.type || 'SSD'
+      },
+      docker: {
+        total: docker.length,
+        active: docker.filter((c) => c.state === 'running').length,
+      }
     };
   } catch (error) {
-    console.error('Background stats update failed:', error);
+    console.error('Error updating hardware stats:', error);
   }
-}, 2000);
+}
 
-// API route for server stats
+// Start background polling for hardware stats every 2 seconds
+updateHardwareStats();
+setInterval(updateHardwareStats, 2000);
+
+// API route for server stats (Instantly returns memory cache)
 app.get('/api/diagnostics', (req, res) => {
   if (!cachedStats) {
-    return res.status(503).json({ error: 'Stats initializing' });
+    return res.status(503).json({ error: 'Server stats initializing...' });
   }
   res.json(cachedStats);
 });
 
-// Pulse routes
+
+// ==========================================
+// 2. SURVEY DATA CACHE
+// ==========================================
+const surveyFile = path.join(__dirname, 'survey-data.json');
+let cachedSurvey = { yes: 0, no: 0 };
+let surveyNeedsSave = false;
+
+async function loadInitialSurveyData() {
+  try {
+    const data = await fs.readFile(surveyFile, 'utf8');
+    cachedSurvey = JSON.parse(data);
+  } catch {
+    await fs.writeFile(surveyFile, JSON.stringify(cachedSurvey));
+  }
+}
+
+// Background worker to save survey to disk every 5 seconds if changed
+setInterval(async () => {
+  if (surveyNeedsSave) {
+    try {
+      await fs.writeFile(surveyFile, JSON.stringify(cachedSurvey));
+      surveyNeedsSave = false;
+    } catch (error) {
+      console.error('Failed to save survey to disk:', error);
+    }
+  }
+}, 5000);
+
+loadInitialSurveyData();
+
+// API routes for survey (Instantly read/write memory)
 app.get('/api/pulse', (req, res) => {
-  res.json(surveyCache);
+  res.json(cachedSurvey);
 });
 
 app.post('/api/pulse', (req, res) => {
-  try {
-    const { vote } = req.body;
-    if (vote !== 'yes' && vote !== 'no') {
-      return res.status(400).json({ error: 'Invalid vote' });
-    }
-    
-    // Increment instantly in memory (Thread-safe in Node.js)
-    surveyCache[vote] += 1;
-    
-    // Save to disk asynchronously in the background
-    fs.writeFile(surveyFile, JSON.stringify(surveyCache)).catch(err => console.error('Save failed:', err));
-    
-    res.json(surveyCache);
-  } catch {
-    res.status(500).json({ error: 'Failed to process vote' });
+  const { vote } = req.body;
+  if (vote !== 'yes' && vote !== 'no') {
+    return res.status(400).json({ error: 'Invalid vote' });
   }
+  
+  cachedSurvey[vote] += 1;
+  surveyNeedsSave = true; // Flag for background worker
+  
+  res.json(cachedSurvey);
 });
 
-// Serve React build in production
+
+// ==========================================
+// 3. FRONTEND SERVING (PRODUCTION)
+// ==========================================
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, 'dist')));
 
@@ -137,5 +167,5 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 app.listen(PORT, () => {
-  console.log(`ServerHub backend running on port ${PORT}`);
+  console.log(`ZekeHub backend running on port ${PORT}`);
 });
